@@ -1,0 +1,24 @@
+api:
+  stat_api: # 关注数、粉丝数
+    str1: "https://api.bilibili.com/x/relation/stat?vmid="
+    str2: 'UID'
+  upstat_api: # 播放量、点赞量、阅读量
+    str1: "https://api.bilibili.com/x/space/upstat?mid="
+    str2: 'UID'
+    str3: '&jsonp=jsonp'
+  info_api: # 昵称、等级等
+#    str1: "https://api.bilibili.com/x/space/acc/info?mid="
+#    str2: 'UID'
+#    str3: '&jsonp=jsonp'
+    str1: "https://api.bilibili.com/x/space/wbi/acc/info?mid="
+    str2: 'UID'
+    str3: "&token=&platform=web&web_location=1550101"
+    str4: "&w_rid=8b85e4911af11fa277aca4952002e4f5"
+    str5: "&wts=1707719647"
+
+browser_request_data:
+  headers: {
+    'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36",
+#    此处cookie为浏览器无痕模式下获取的未登录状态的cookie,以保证账号安全性,不支持获取播放量信息, 若需获取播放量还需使用已登录账号下获取的cookie
+    'cookie': ""
+  }
