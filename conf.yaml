@@ -20,5 +20,5 @@ browser_request_data:
   headers: {
     'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36",
 #    此处cookie为浏览器无痕模式下获取的未登录状态的cookie,以保证账号安全性,不支持获取播放量信息, 若需获取播放量还需使用已登录账号下获取的cookie
-    'cookie': ""
+   'cookie': "buvid3=7A1F986D-B90C-A11A-B251-CA7491AFCBC675326infoc; b_nut=1707958875; i-wanna-go-back=-1; b_ut=7; b_lsid=244C8E29_18DAA48361A; _uuid=754F7CEC-FBF4-A28C-761010-77A10B51D273375695infoc; enable_web_push=DISABLE; header_theme_version=undefined; buvid_fp=e0d2eecaf82ac06d6ada3db92285c81b; home_feed_column=5; browser_resolution=1536-776; buvid4=05480DFC-BC4D-911C-109F-B44148614C3077591-024021501-KNlVlwwgQPGSQe4FeTg%2FkQ%3D%3D; CURRENT_FNVAL=4048; sid=h3rwtmrg; rpdid=|(YYRmm|uJJ0J'u~|~ml)mR); bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDgyMTgxNTEsImlhdCI6MTcwNzk1ODg5MSwicGx0IjotMX0.iqktGXA3MyOitIU4OKGKLqjJZfxBKoHxodkbpm8x-QA; bili_ticket_expires=1808218091; PVID=3"
   }

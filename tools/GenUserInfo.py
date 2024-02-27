@@ -1,4 +1,22 @@
 """
+2024-02-22 更新：
+    服务运行过程中get_fans()会报错, 暂时找不到原因
+    详情：
+        请求显示: The server encountered an internal error and was unable to complete your request. 
+                Either the server is overloaded or there is an error in the application.
+        服务日志: pymysql.err.InterfaceError: (0, '')
+    更新内容:
+        加入日志记录模块
+        # 记录日志示例:
+        logging.info('服务启动')
+        logging.warning('警告：服务出现问题')
+        # 关闭日志记录器
+        logging.shutdown()
+    加入日志模块，看日志是报：(2006, "MySQL server has gone away (BrokenPipeError(32, 'Broken pipe'))")
+    解决：
+        # 检查连接状态
+        if not conn.open:
+            conn.ping(reconnect=True)
 获取用户信息：
     图像路径
     粉丝数
@@ -11,7 +29,17 @@ import json
 import datetime
 import configparser
 import yaml
-from tools.read_date_base import ReadDateBase
+import logging
+import sys
+
+sys.path.append('tools')
+from read_date_base import ReadDateBase
+
+# 配置日志记录器
+if not os.path.exists('user_files/log'):
+    os.makedirs('user_files/log')
+logging.basicConfig(filename='user_files/log/GenUserInfo.log', level=logging.INFO, encoding='utf-8',
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class ProcessDatabase(ReadDateBase):
@@ -20,23 +48,30 @@ class ProcessDatabase(ReadDateBase):
         self.create_sheet()
 
     def get_fans(self):
-        # 查询最新日期
-        query_latest_date = "SELECT MAX(record_time) FROM stat_data"
-        self.cursor.execute(query_latest_date)
-        latest_date = self.cursor.fetchone()[0]
-
-        # 查询follower字段数据
-        query_follower_data = f"SELECT follower_count FROM stat_data WHERE record_time = '{latest_date}'"
-        self.cursor.execute(query_follower_data)
-        follower_data = self.cursor.fetchall()[0][0]
-
-        return follower_data, latest_date
+        try:
+            # 检查连接状态
+            if not self.conn.open:
+                self.conn.ping(reconnect=True)
+                logging.info('get_fans: 检查连接成功')
+            # 查询最新日期
+            query_latest_date = "SELECT MAX(record_time) FROM stat_data"
+            self.cursor.execute(query_latest_date)
+            latest_date = self.cursor.fetchone()[0]
+            # 查询follower字段数据
+            query_follower_data = f"SELECT follower_count FROM stat_data WHERE record_time = '{latest_date}'"
+            self.cursor.execute(query_follower_data)
+            follower_data = self.cursor.fetchall()[0][0]
+            logging.info(f'get_fans:{follower_data}, latest_date:{latest_date}')
+            return follower_data, latest_date
+        except Exception as e:
+            logging.warning('get_fans 异常：' + str(e))
+            return -1, -1
 
 
 class GetUserInfo:
     def __init__(self, config_ini, config_yaml):
         # 读取配置文件
-        self.config_ini= configparser.ConfigParser()
+        self.config_ini = configparser.ConfigParser()
         self.config_ini.read(config_ini, encoding='utf-8')
 
         with open(config_yaml, 'r', encoding='utf-8') as file:
@@ -45,24 +80,27 @@ class GetUserInfo:
         self.uid = 353300793
         self.user_info = {
             "uid": self.uid,
-            "follower": 'null',         # 粉丝数
-            "following": 'null',        # 关注数
-            "recoder_time_1": 'null',   # 粉丝数、关注数的记录时间
-            "log_1": 'null',            # 粉丝数、关注数的日志
-            "likes": 'null',            # 点赞数
-            "archive_view": 'null',     # 播放数
-            "article_view": 'null',     # 阅读数
-            "recoder_time_2": 'null',   # 点赞数、阅读数、播放数的记录时间
-            "log_2": 'null',            # 粉丝数、关注数的日志
-            "image_path": 'null',        # 头像
-            "recoder_time_3": 'null',   # 头像的记录时间
-            "log_3": 'null',            # 粉丝数、关注数的日志
+            "follower": 'null',  # 粉丝数
+            "following": 'null',  # 关注数
+            "recoder_time_1": 'null',  # 粉丝数、关注数的记录时间
+            "log_1": 'null',  # 粉丝数、关注数的日志
+            "likes": 'null',  # 点赞数
+            "archive_view": 'null',  # 播放数
+            "article_view": 'null',  # 阅读数
+            "recoder_time_2": 'null',  # 点赞数、阅读数、播放数的记录时间
+            "log_2": 'null',  # 粉丝数、关注数的日志
+            "image_path": 'null',  # 头像
+            "recoder_time_3": 'null',  # 头像的记录时间
+            "log_3": 'null',  # 粉丝数、关注数的日志
         }
 
         # 获取api
-        self.stat_api = self.process_api_str([self.config_yaml['api']['stat_api'][key] for key in self.config_yaml['api']['stat_api']])
-        self.info_api = self.process_api_str(self.config_yaml['api']['info_api'][key] for key in self.config_yaml['api']['info_api'])
-        self.upstat_api = self.process_api_str(self.config_yaml['api']['upstat_api'][key] for key in self.config_yaml['api']['upstat_api'])
+        self.stat_api = self.process_api_str(
+            [self.config_yaml['api']['stat_api'][key] for key in self.config_yaml['api']['stat_api']])
+        self.info_api = self.process_api_str(
+            self.config_yaml['api']['info_api'][key] for key in self.config_yaml['api']['info_api'])
+        self.upstat_api = self.process_api_str(
+            self.config_yaml['api']['upstat_api'][key] for key in self.config_yaml['api']['upstat_api'])
         print(self.stat_api, '\n', self.info_api, '\n', self.upstat_api)
 
         # 请求头
@@ -115,16 +153,18 @@ class GetUserInfo:
             response = requests.get(self.stat_api, headers=self.headers)
             json_data = response.json()
             # print(json_data)  # --测试代码--
-            if json_data['code'] == (-412 or -504):   # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
+            if json_data['code'] == (-412 or -504):  # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
                 self.user_info["recoder_time_1"] = str(datetime.datetime.now())[:19]
-                self.user_info["log_1"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
+                self.user_info[
+                    "log_1"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
             elif json_data['data'] == {}:
                 self.user_info["log_1"] = f"{str(datetime.datetime.now())[:19]}: 请求异常: data is none"
             else:
                 self.user_info["following"] = json_data['data']['following']  # 关注数
                 self.user_info["follower"] = json_data['data']['follower']  # 粉丝数
                 self.user_info["log_1"] = "ok"
-                self.user_info["recoder_time_1"] = str(datetime.datetime.now())[:19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
+                self.user_info["recoder_time_1"] = str(datetime.datetime.now())[
+                                                   :19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
         except IOError as e:
             self.user_info["recoder_time_1"] = str(datetime.datetime.now())[:19]
             self.user_info["log_1"] = f"{str(datetime.datetime.now())[:19]}: 网络错误, 请关闭代理后重试！{e}"
@@ -142,9 +182,10 @@ class GetUserInfo:
             response = requests.get(self.upstat_api, headers=self.headers)
             json_data = response.json()
             # print(json_data)  # --测试代码--
-            if json_data['code'] == (-412 or -504):   # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
+            if json_data['code'] == (-412 or -504):  # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
                 self.user_info["recoder_time_2"] = str(datetime.datetime.now())[:19]
-                self.user_info["log_2"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
+                self.user_info[
+                    "log_2"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
             elif json_data['data'] == {}:
                 self.user_info["recoder_time_2"] = str(datetime.datetime.now())[:19]
                 self.user_info["log_2"] = f"{str(datetime.datetime.now())[:19]}: 请求异常: data is none"
@@ -153,7 +194,8 @@ class GetUserInfo:
                 self.user_info["archive_view"] = json_data['data']['archive']['view']  # 粉播放数
                 self.user_info["article_view"] = json_data['data']['article']['view']  # 阅读数
                 self.user_info["log_2"] = "ok"
-                self.user_info["recoder_time_2"] = str(datetime.datetime.now())[:19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
+                self.user_info["recoder_time_2"] = str(datetime.datetime.now())[
+                                                   :19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
         except IOError as e:
             self.user_info["recoder_time_2"] = str(datetime.datetime.now())[:19]
             self.user_info["log_2"] = f"{str(datetime.datetime.now())[:19]}: 网络错误, 请关闭代理后重试！{e}"
@@ -171,9 +213,10 @@ class GetUserInfo:
             response = requests.get(self.info_api, headers=self.headers)
             json_data = response.json()
             print(json_data)  # --测试代码--
-            if json_data['code'] == (-412 or -504):   # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
+            if json_data['code'] == (-412 or -504):  # 请求被拦截, {"code":-412,"message":"请求被拦截","ttl":1,"data":null}
                 self.user_info["recoder_time_3"] = str(datetime.datetime.now())[:19]
-                self.user_info["log_3"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
+                self.user_info[
+                    "log_3"] = f"{str(datetime.datetime.now())[:19]}: 请求错误: code is {json_data['code']}, message is {json_data['message']}"
             elif json_data['data'] == {}:
                 self.user_info["recoder_time_3"] = str(datetime.datetime.now())[:19]
                 self.user_info["log_3"] = f"{str(datetime.datetime.now())[:19]}: 请求异常: data is none"
@@ -181,7 +224,8 @@ class GetUserInfo:
                 user_face_url = json_data['data']['face']
                 self.user_info['image_path'] = self.download_image(user_face_url)
                 self.user_info["log_3"] = "ok"
-                self.user_info["recoder_time_3"] = str(datetime.datetime.now())[:19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
+                self.user_info["recoder_time_3"] = str(datetime.datetime.now())[
+                                                   :19]  # 当前系统时间,提取前19位, 如 2022-03-28 16:03:59
         except IOError as e:
             self.user_info["recoder_time_3"] = str(datetime.datetime.now())[:19]
             self.user_info["log_3"] = f"{str(datetime.datetime.now())[:19]}: 网络错误, 请关闭代理后重试！{e}"
@@ -194,7 +238,7 @@ class GetUserInfo:
         self.update_stat_api_request_data()
         self.update_upstat_api_request_data()
         self.update_info_api_request_data()
-        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)     # 将JSON数据转换为字符串，并设置缩进参数indent=4
+        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)  # 将JSON数据转换为字符串，并设置缩进参数indent=4
         print(json_str)
         # 将新数据写入数据库
         self.process_database.insert_stat(self.user_info['follower'],
@@ -229,7 +273,7 @@ class GetUserInfo:
     def main_update_stat(self):
         """示例1 更新数据库中的数据"""
         self.update_stat_api_request_data()
-        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)     # 将JSON数据转换为字符串，并设置缩进参数indent=4
+        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)  # 将JSON数据转换为字符串，并设置缩进参数indent=4
         print(json_str)
         # 将新数据写入数据库
         self.process_database.insert_stat(self.user_info['follower'],
@@ -248,7 +292,7 @@ class GetUserInfo:
     def main_update_upstat(self):
         """示例1 更新数据库中的数据"""
         self.update_upstat_api_request_data()
-        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)     # 将JSON数据转换为字符串，并设置缩进参数indent=4
+        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)  # 将JSON数据转换为字符串，并设置缩进参数indent=4
         print(json_str)
         # 将新数据写入数据库
         self.process_database.insert_upstat(self.user_info['likes'],
@@ -269,7 +313,7 @@ class GetUserInfo:
     def main_update_info(self):
         """示例1 更新数据库中的数据"""
         self.update_info_api_request_data()
-        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)     # 将JSON数据转换为字符串，并设置缩进参数indent=4
+        json_str = json.dumps(self.user_info, indent=4, ensure_ascii=False)  # 将JSON数据转换为字符串，并设置缩进参数indent=4
         print(json_str)
         # 将新数据写入数据库
         self.process_database.insert_info(self.user_info['image_path'],
@@ -305,6 +349,3 @@ if __name__ == '__main__':
     # get_user_info.main_update_stat()
     # get_user_info.main_update_upstat()
     get_user_info.main_update_info()
-
-
-
